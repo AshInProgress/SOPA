@@ -45,8 +45,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener {
     private lateinit var recognizer: Recognizer
     private lateinit var model: Model
     private lateinit var resultTextView: TextView
-    private var fullText: String = "" // To store the complete dictation
-    private lateinit var recognizedText: TextView  // Declare recognizedText
+    private lateinit var dictationTextView: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,7 +78,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener {
 
         // Initialize UI components
         resultTextView = findViewById(R.id.recognizedTextView)
-        recognizedText = findViewById(R.id.recognizedTextView)
+        dictationTextView = findViewById(R.id.dictationTextView)
         val startButton: Button = findViewById(R.id.startButton)
         val stopButton: Button = findViewById(R.id.stopButton)
         val saveButton: Button = findViewById(R.id.saveButton)
@@ -124,7 +123,8 @@ class MainActivity : AppCompatActivity(), RecognitionListener {
             recognizer = Recognizer(model, 16000.0f)
             speechService = SpeechService(recognizer, 16000.0f)
             speechService.startListening(this)
-            recognizedText.text = "" // Clear the placeholder text when recognition starts
+            resultTextView.text = "" // Clear the placeholder text when recognition starts
+            dictationTextView.text = "" // Clear the placeholder text when recognition starts
             Toast.makeText(this, "Listening...", Toast.LENGTH_SHORT).show()
             Log.d("SOPA", "Recognizer started.")
         } catch (e: Exception) {
@@ -144,15 +144,24 @@ class MainActivity : AppCompatActivity(), RecognitionListener {
         }
     }
 
-    // Only show the final result to avoid multiple entries
-    override fun onResult(hypothesis: String?) {
-        if (hypothesis != null) {
+    // Store the last recognized partial result
+    var lastPartialText: String = ""
+
+    // Partial result: only update if the new result is different from the last one
+    override fun onPartialResult(hypothesis: String?) {
+        hypothesis?.let {
             try {
-                val jsonObject = JSONObject(hypothesis)
-                if (jsonObject.has("text")) {
-                    val finalText = jsonObject.getString("text")
-                    runOnUiThread {
-                        recognizedText.append(finalText + " ") // Append final result without resetting
+                val jsonObject = JSONObject(it)
+                if (jsonObject.has("partial")) {
+                    val partialText = jsonObject.getString("partial")
+
+                    // Only update if the new partial text is different
+                    if (partialText != lastPartialText) {
+                        lastPartialText = partialText
+                        runOnUiThread {
+                            // Display cleaner partial text without the JSON formatting
+                            resultTextView.text = partialText
+                        }
                     }
                 }
             } catch (e: JSONException) {
@@ -161,14 +170,35 @@ class MainActivity : AppCompatActivity(), RecognitionListener {
         }
     }
 
-    // No need for the other result methods if we only care about final results
     override fun onFinalResult(hypothesis: String?) {
-        // Leave empty or remove this method entirely
+       // hypothesis?.let {
+          // runOnUiThread {
+         //       resultTextView.append("Mid-result: $it\n")
+        //    }
+       // }
     }
 
-    override fun onPartialResult(hypothesis: String?) {
-        // Leave empty or remove this method entirely
+    // Final result: overwrite partial with final and append to dictation
+    override fun onResult(hypothesis: String?) {
+        hypothesis?.let {
+            try {
+                val jsonObject = JSONObject(it)
+                if (jsonObject.has("text")) {
+                    val finalText = jsonObject.getString("text")
+
+                    runOnUiThread {
+                        // Overwrite partial result with final result and append to dictation
+                        resultTextView.text = finalText
+                        dictationTextView.append(finalText + " ")
+                    }
+                }
+            } catch (e: JSONException) {
+                e.printStackTrace()
+            }
+        }
     }
+
+
 
 
 
@@ -198,7 +228,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener {
                     val file = File(documentDir, "$fileName.txt")
 
                     val writer = FileWriter(file)
-                    writer.write(recognizedText.text.toString())
+                    writer.write(dictationTextView.text.toString())
                     writer.flush()
                     writer.close()
 
