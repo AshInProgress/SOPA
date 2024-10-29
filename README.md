@@ -4,8 +4,11 @@ S.O.P.A is an offline, privacy-focused AI assistant for Android, offering core f
 
 ## Features (in development)
 - Offline speech recognition -v0.1
+- Long Form Dictation and saving -v0.1a
 - Voice-controlled messaging and calling
 - Local data encryption
+- wake word 'SOPA"
 
 ## Future Goals
-- Integration with smart homes and vehicles
+- Integration with irregular applications and other platforms
+- personalized speech recognizer tuning
